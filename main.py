@@ -53,17 +53,24 @@ def autenticar_meu_usuario(
 
 
 @app.get("/Livros")
-def get_livros(page: int = 1, limit: int = 10, usuario: str = Depends(autenticar_meu_usuario)):
-    if page < 1 or limit < 1:
-        raise HTTPException(status_code=400, detail="Page ou limit estão com valores invalidos")
-    
+def get_livros(page: int = 1, size: int = 10, order_by: Optional[str] = None, usuario: str = Depends(autenticar_meu_usuario)):
+    if page < 1 or size < 1:
+        raise HTTPException(status_code=400, detail="Page ou size estão com valores invalidos")
+
+    campos_validos = ["nome_livro", "autor_livro", "ano_livro"]
+    if order_by and order_by not in campos_validos:
+        raise HTTPException(status_code=400, detail="Campo de ordenação invalido")
+
     if not meus_livros:
         return {"message": "Não existe nenhum livro"}
+
+    if order_by:
+        livros_ordenados = sorted(meus_livros.items(), key=lambda x: x[1][order_by])
+    else:
+        livros_ordenados = sorted(meus_livros.items(), key=lambda x: x[0])
     
-    livros_ordenados = sorted(meus_livros.items(), key=lambda x: x[0])
-    
-    start = (page -1) * limit
-    end = start + limit
+    start = (page -1) * size
+    end = start + size
 
     livros_paginados = [{"id": id_livro, "nome_livro": livro_data["nome_livro"], "autor_livro": livro_data["autor_livro"], "ano_livro": livro_data["ano_livro"]}
                         for id_livro, livro_data in livros_ordenados[start:end]
@@ -72,7 +79,7 @@ def get_livros(page: int = 1, limit: int = 10, usuario: str = Depends(autenticar
 
     return {
         "page": page,
-        "limit": limit,
+        "size": size,
         "total": len(meus_livros),
         "livros": livros_paginados
     }
